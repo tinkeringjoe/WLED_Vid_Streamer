@@ -110,6 +110,10 @@ void NetworkWeb::begin() {
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP());
 
+    // Disable Wi-Fi sleep mode. This is CRITICAL for high-throughput UDP streaming
+    // and prevents the Web UI from periodically dropping out or timing out.
+    WiFi.setSleep(false);
+
     // Start mDNS responder so you can go to http://wled-vid-streamer.local
     if (MDNS.begin("wled-vid-streamer")) {
         Serial.println("MDNS responder started at http://wled-vid-streamer.local");

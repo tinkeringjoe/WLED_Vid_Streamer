@@ -64,9 +64,9 @@ void WLEDStreamer::sendFrame(uint8_t* frameBuffer, int width, int height) {
 
         bytesSent += bytesToSend;
         
-        // Brief yield to allow the Wi-Fi task to dispatch the UDP packet
-        // This prevents ENOMEM (Error 12) from filling up the TX buffers
-        delay(1); 
+        // Yield to allow the Wi-Fi/Web Server tasks to dispatch network traffic
+        // This prevents ENOMEM and keeps the Web UI responsive.
+        yield();
     }
     
     // Increment sequence (1-15 per DDP spec)

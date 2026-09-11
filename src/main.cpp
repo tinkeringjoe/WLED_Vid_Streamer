@@ -93,33 +93,31 @@ void loop() {
         Serial.println("---------------------");
     }
 
-    // 3. Capture Frame
-    // Limit to ~20 FPS to prevent flooding the ESP32's Wi-Fi TX buffers (Error 12)
-    static unsigned long lastFrameTime = 0;
-    if (millis() - lastFrameTime < 50) {
-        return; // Skip this loop iteration
+    // 3. Capture & Process Frame (Only if streaming is enabled!)
+    if (streamEnabled) {
+        // Limit to ~15 FPS (66ms) to balance smooth video with network stability
+        static unsigned long lastFrameTime = 0;
+        if (millis() - lastFrameTime > 66) {
+            lastFrameTime = millis();
+
+            camera_fb_t* fb = camHandler.captureFrame();
+            if (fb) {
+                // 4. Process Frame
+                uint8_t* outputFrame = imgProcessor.processFrame(
+                    fb, 
+                    netWeb.matrixWidth, 
+                    netWeb.matrixHeight, 
+                    netWeb.currentEffect
+                );
+
+                // 5. Send to WLED
+                if (outputFrame) {
+                    wledStreamer.sendFrame(outputFrame, netWeb.matrixWidth, netWeb.matrixHeight);
+                }
+
+                // 6. Return Frame Buffer
+                camHandler.returnFrame(fb);
+            }
+        }
     }
-    lastFrameTime = millis();
-
-    camera_fb_t* fb = camHandler.captureFrame();
-    if (!fb) {
-        return;
-    }
-
-    // 4. Process Frame
-    uint8_t* outputFrame = imgProcessor.processFrame(
-        fb, 
-        netWeb.matrixWidth, 
-        netWeb.matrixHeight, 
-        netWeb.currentEffect
-    );
-
-    // 5. Send to WLED if the toggle switch is enabled
-    // Assuming the switch connects the pin to GND when enabled (INPUT_PULLUP)
-    if (outputFrame && streamEnabled) {
-        wledStreamer.sendFrame(outputFrame, netWeb.matrixWidth, netWeb.matrixHeight);
-    }
-
-    // 6. Return Frame Buffer
-    camHandler.returnFrame(fb);
 }
