@@ -79,19 +79,7 @@ void loop() {
         // Effects are updated asynchronously by the web server
     }
 
-    // 2.5 Periodic Status Output (Every 5 seconds)
-    static unsigned long lastStatusPrint = 0;
-    if (millis() - lastStatusPrint > 5000) {
-        lastStatusPrint = millis();
-        Serial.println("\n--- Status Update ---");
-        Serial.printf("Device IP: %s\n", WiFi.localIP().toString().c_str());
-        Serial.printf("Target WLED: %s:%d\n", netWeb.wledIP.c_str(), DDP_PORT);
-        Serial.printf("Matrix Size: %dx%d\n", netWeb.matrixWidth, netWeb.matrixHeight);
-        Serial.printf("Control Source: %s\n", netWeb.currentControlMode == CONTROL_HARDWARE ? "HARDWARE PINS" : "WEB UI");
-        Serial.printf("Current Effect: %s\n", imgProcessor.getEffectName(netWeb.currentEffect));
-        Serial.printf("Stream State: %s\n", streamEnabled ? "ACTIVE (Pushing to WLED)" : "PAUSED (WLED standard effects)");
-        Serial.println("---------------------");
-    }
+    // Periodic Status Output removed for performance optimization
 
     // 3. Capture & Process Frame (Only if streaming is enabled!)
     if (streamEnabled) {

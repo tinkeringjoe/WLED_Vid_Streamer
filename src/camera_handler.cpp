@@ -39,11 +39,18 @@ bool CameraHandler::begin() {
         return false;
     }
     
-    // Initial adjustments
+    // Initial adjustments for better image quality (fixing washed-out look)
     sensor_t * s = esp_camera_sensor_get();
     if(s != nullptr){
         s->set_vflip(s, 1);   // Might need toggling depending on physical orientation
         s->set_hmirror(s, 1); 
+        
+        // --- Image Quality Tuning ---
+        s->set_contrast(s, 1);     // Bump contrast to remove flat/washed-out look
+        s->set_saturation(s, 1);   // Slight color boost
+        s->set_aec2(s, 1);         // Enable advanced auto exposure
+        s->set_awb_gain(s, 1);     // Auto White Balance gain
+        s->set_wb_mode(s, 0);      // 0 = Auto White Balance
     }
 
     // Configure ADC pin
@@ -74,7 +81,11 @@ void CameraHandler::setBrightness(int brightness) {
         // clamp between -2 and 2
         if (brightness < -2) brightness = -2;
         if (brightness > 2) brightness = 2;
-        s->set_brightness(s, brightness);
+        
+        // Instead of setting "brightness" (which applies a flat digital offset and washes out the image),
+        // we set the Auto Exposure Target Level (ae_level). This tells the hardware shutter to let in
+        // more or less light, preserving contrast and color depth!
+        s->set_ae_level(s, brightness); 
     }
 }
 

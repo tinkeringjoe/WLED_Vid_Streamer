@@ -48,14 +48,14 @@ void ImageProcessor::processNearestNeighbor(camera_fb_t* fb, int targetW, int ta
     static unsigned long frameCount = 0;
     frameCount++;
 
-    float x_ratio = ((float)(srcW - 1)) / targetW;
-    float y_ratio = ((float)(srcH - 1)) / targetH;
-
+    // Fast Integer Math Scaling
     for (int i = 0; i < targetH; i++) {
+        int srcY = (i * srcH) / targetH;
+        int rowOffset = srcY * srcW;
+        
         for (int j = 0; j < targetW; j++) {
-            int srcX = (int)(x_ratio * j);
-            int srcY = (int)(y_ratio * i);
-            int srcIndex = (srcY * srcW) + srcX;
+            int srcX = (j * srcW) / targetW;
+            int srcIndex = rowOffset + srcX;
             
             uint8_t r, g, b;
             rgb565ToRgb888(pixels[srcIndex], r, g, b);
