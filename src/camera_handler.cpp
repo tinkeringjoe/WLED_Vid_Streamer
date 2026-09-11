@@ -69,23 +69,33 @@ void CameraHandler::returnFrame(camera_fb_t* fb) {
     }
 }
 
-int CameraHandler::getBrightnessFromADC() {
+int CameraHandler::getManualExposureFromADC() {
     int adcValue = analogRead(LDR_ADC_PIN); // 0 to 4095
-    // Map ADC value to camera brightness (-2 to 2)
-    return map(adcValue, 0, 4095, -2, 2);
+    // Map ADC value to manual exposure time (0 to 1200)
+    return map(adcValue, 0, 4095, 0, 1200);
 }
 
-void CameraHandler::setBrightness(int brightness) {
+void CameraHandler::applyCameraSettings(int contrast, int saturation, bool autoExp, int manualExp) {
     sensor_t * s = esp_camera_sensor_get();
     if (s != nullptr) {
-        // clamp between -2 and 2
-        if (brightness < -2) brightness = -2;
-        if (brightness > 2) brightness = 2;
-        
-        // Instead of setting "brightness" (which applies a flat digital offset and washes out the image),
-        // we set the Auto Exposure Target Level (ae_level). This tells the hardware shutter to let in
-        // more or less light, preserving contrast and color depth!
-        s->set_ae_level(s, brightness); 
+        // Clamp contrast and saturation (-2 to 2)
+        if (contrast < -2) contrast = -2;
+        if (contrast > 2) contrast = 2;
+        if (saturation < -2) saturation = -2;
+        if (saturation > 2) saturation = 2;
+
+        s->set_contrast(s, contrast);
+        s->set_saturation(s, saturation);
+
+        if (autoExp) {
+            s->set_exposure_ctrl(s, 1); // Auto Exposure ON
+        } else {
+            s->set_exposure_ctrl(s, 0); // Auto Exposure OFF
+            // Clamp manual exposure (0 to 1200)
+            if (manualExp < 0) manualExp = 0;
+            if (manualExp > 1200) manualExp = 1200;
+            s->set_aec_value(s, manualExp); 
+        }
     }
 }
 

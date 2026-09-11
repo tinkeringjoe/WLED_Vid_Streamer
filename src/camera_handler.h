@@ -9,8 +9,8 @@ public:
     bool begin();
     camera_fb_t* captureFrame();
     void returnFrame(camera_fb_t* fb);
-    void setBrightness(int brightness);
-    int getBrightnessFromADC();
+    int getManualExposureFromADC(); // Returns 0-1200
+    void applyCameraSettings(int contrast, int saturation, bool autoExp, int manualExp);
     unsigned long lastAdcRead = 0;
 };
 

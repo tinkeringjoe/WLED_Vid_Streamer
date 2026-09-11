@@ -43,9 +43,6 @@ const char* index_html = R"rawliteral(
             <label for="streamEnable" class="inline-label">Enable Stream:</label>
             <input type="checkbox" id="streamEnable" %STREAM_CHK%>
             
-            <label for="brightness">Camera Brightness (-2 to 2): <span id="brtVal">%BRIGHTNESS%</span></label>
-            <input type="range" id="brightness" min="-2" max="2" value="%BRIGHTNESS%" oninput="document.getElementById('brtVal').innerText=this.value">
-            
             <label for="effect">Current Effect:</label>
             <select id="effect">
                 <option value="0" %S0%>Normal</option>
@@ -55,6 +52,23 @@ const char* index_html = R"rawliteral(
                 <option value="4" %S4%>Sepia</option>
                 <option value="5" %S5%>Psychedelic</option>
             </select>
+            
+            <hr style="border:1px solid #555; margin: 20px 0;">
+            <h3>Camera Image Tuning</h3>
+
+            <label for="contrast">Contrast (-2 to 2): <span id="ctVal">%CONTRAST%</span></label>
+            <input type="range" id="contrast" min="-2" max="2" value="%CONTRAST%" oninput="document.getElementById('ctVal').innerText=this.value">
+
+            <label for="saturation">Saturation (-2 to 2): <span id="stVal">%SATURATION%</span></label>
+            <input type="range" id="saturation" min="-2" max="2" value="%SATURATION%" oninput="document.getElementById('stVal').innerText=this.value">
+
+            <label for="autoExposure" class="inline-label">Auto Exposure (AEC):</label>
+            <input type="checkbox" id="autoExposure" %AE_CHK% onchange="updateUI()">
+
+            <div id="manualExpGroup">
+                <label for="exposureVal">Manual Exposure Time (0-1200): <span id="evVal">%EXPOSURE%</span></label>
+                <input type="range" id="exposureVal" min="0" max="1200" value="%EXPOSURE%" oninput="document.getElementById('evVal').innerText=this.value">
+            </div>
         </div>
 
         <button onclick="saveConfig()">Save Configuration</button>
@@ -65,10 +79,19 @@ const char* index_html = R"rawliteral(
         function updateUI() {
             var mode = document.getElementById('controlMode').value;
             var group = document.getElementById('controlsGroup');
+            var aeChecked = document.getElementById('autoExposure').checked;
+            var expGroup = document.getElementById('manualExpGroup');
+
             if (mode === "0") {
                 group.classList.add('disabled-overlay');
             } else {
                 group.classList.remove('disabled-overlay');
+            }
+
+            if (aeChecked) {
+                expGroup.classList.add('disabled-overlay');
+            } else {
+                expGroup.classList.remove('disabled-overlay');
             }
         }
         
@@ -81,13 +104,16 @@ const char* index_html = R"rawliteral(
             var h = document.getElementById('height').value;
             var mode = document.getElementById('controlMode').value;
             var en = document.getElementById('streamEnable').checked ? 1 : 0;
-            var brt = document.getElementById('brightness').value;
             var e = document.getElementById('effect').value;
+            var ct = document.getElementById('contrast').value;
+            var st = document.getElementById('saturation').value;
+            var ae = document.getElementById('autoExposure').checked ? 1 : 0;
+            var ev = document.getElementById('exposureVal').value;
             
             fetch('/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'ip=' + ip + '&w=' + w + '&h=' + h + '&m=' + mode + '&en=' + en + '&b=' + brt + '&e=' + e
+                body: 'ip=' + ip + '&w=' + w + '&h=' + h + '&m=' + mode + '&en=' + en + '&e=' + e + '&ct=' + ct + '&st=' + st + '&ae=' + ae + '&ev=' + ev
             })
             .then(response => {
                 if(response.ok) document.getElementById('status').innerText = "Saved successfully!";
@@ -98,6 +124,8 @@ const char* index_html = R"rawliteral(
 </body>
 </html>
 )rawliteral";
+
+#endif // WEB_HTML_H
 
 #endif // WEB_HTML_H
 

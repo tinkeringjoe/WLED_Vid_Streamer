@@ -16,7 +16,12 @@ void NetworkWeb::loadPreferences() {
     
     currentControlMode = (ControlMode)preferences.getInt("ctrlMode", CONTROL_HARDWARE);
     webStreamEnabled = preferences.getBool("webStream", true);
-    webCameraBrightness = preferences.getInt("webBrt", 0);
+    
+    webContrast = preferences.getInt("webCont", 0);
+    webSaturation = preferences.getInt("webSat", 0);
+    webAutoExposure = preferences.getBool("webAE", true);
+    webExposureVal = preferences.getInt("webExpV", 300);
+    
     preferences.end();
 }
 
@@ -29,7 +34,12 @@ void NetworkWeb::savePreferences() {
     
     preferences.putInt("ctrlMode", (int)currentControlMode);
     preferences.putBool("webStream", webStreamEnabled);
-    preferences.putInt("webBrt", webCameraBrightness);
+    
+    preferences.putInt("webCont", webContrast);
+    preferences.putInt("webSat", webSaturation);
+    preferences.putBool("webAE", webAutoExposure);
+    preferences.putInt("webExpV", webExposureVal);
+    
     preferences.end();
 }
 
@@ -47,7 +57,11 @@ String processor(const String& var) {
     if(var == "CTRL_HW") return netWeb.currentControlMode == CONTROL_HARDWARE ? "selected" : "";
     if(var == "CTRL_WEB") return netWeb.currentControlMode == CONTROL_WEB ? "selected" : "";
     if(var == "STREAM_CHK") return netWeb.webStreamEnabled ? "checked" : "";
-    if(var == "BRIGHTNESS") return String(netWeb.webCameraBrightness);
+    
+    if(var == "CONTRAST") return String(netWeb.webContrast);
+    if(var == "SATURATION") return String(netWeb.webSaturation);
+    if(var == "AE_CHK") return netWeb.webAutoExposure ? "checked" : "";
+    if(var == "EXPOSURE") return String(netWeb.webExposureVal);
     
     return String();
 }
@@ -76,12 +90,22 @@ void NetworkWeb::setupWebServer() {
         if(request->hasParam("en", true)) {
             netWeb.webStreamEnabled = request->getParam("en", true)->value() == "1";
         }
-        if(request->hasParam("b", true)) {
-            netWeb.webCameraBrightness = request->getParam("b", true)->value().toInt();
-        }
         if(request->hasParam("e", true)) {
             netWeb.currentEffect = (VideoEffect)request->getParam("e", true)->value().toInt();
         }
+        if(request->hasParam("ct", true)) {
+            netWeb.webContrast = request->getParam("ct", true)->value().toInt();
+        }
+        if(request->hasParam("st", true)) {
+            netWeb.webSaturation = request->getParam("st", true)->value().toInt();
+        }
+        if(request->hasParam("ae", true)) {
+            netWeb.webAutoExposure = request->getParam("ae", true)->value() == "1";
+        }
+        if(request->hasParam("ev", true)) {
+            netWeb.webExposureVal = request->getParam("ev", true)->value().toInt();
+        }
+        
         netWeb.savePreferences();
         request->send(200, "text/plain", "OK");
     });

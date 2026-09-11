@@ -44,9 +44,15 @@ void loop() {
         static unsigned long lastAdcRead = 0;
         if (millis() - lastAdcRead > 500) {
             lastAdcRead = millis();
-            int hwBrt = camHandler.getBrightnessFromADC();
-            camHandler.setBrightness(hwBrt);
-            netWeb.webCameraBrightness = hwBrt; // Sync for status output
+            int hwExp = camHandler.getManualExposureFromADC();
+            
+            // In Hardware Mode, we force Auto Exposure OFF so the pot actually works.
+            // We use the Web UI's saved contrast/saturation, but override the exposure.
+            camHandler.applyCameraSettings(netWeb.webContrast, netWeb.webSaturation, false, hwExp);
+            
+            // Sync status variables to Web
+            netWeb.webAutoExposure = false;
+            netWeb.webExposureVal = hwExp; 
         }
 
         // 2. Handle Button for cycling effects
@@ -59,7 +65,6 @@ void loop() {
                 if (nextEffect >= EFFECT_MAX) nextEffect = 0;
                 netWeb.currentEffect = (VideoEffect)nextEffect;
                 
-                Serial.printf("Effect changed to: %s\n", imgProcessor.getEffectName(netWeb.currentEffect));
                 netWeb.savePreferences(); // Save state
             }
         }
@@ -70,10 +75,20 @@ void loop() {
         streamEnabled = netWeb.webStreamEnabled;
         
         // 1. Handle Web-based Camera adjustments
-        static int lastWebBrt = -99;
-        if (netWeb.webCameraBrightness != lastWebBrt) {
-            camHandler.setBrightness(netWeb.webCameraBrightness);
-            lastWebBrt = netWeb.webCameraBrightness;
+        static int lastWebCt = -99;
+        static int lastWebSt = -99;
+        static bool lastWebAE = false;
+        static int lastWebExp = -99;
+
+        if (netWeb.webContrast != lastWebCt || netWeb.webSaturation != lastWebSt || 
+            netWeb.webAutoExposure != lastWebAE || netWeb.webExposureVal != lastWebExp) {
+            
+            camHandler.applyCameraSettings(netWeb.webContrast, netWeb.webSaturation, netWeb.webAutoExposure, netWeb.webExposureVal);
+            
+            lastWebCt = netWeb.webContrast;
+            lastWebSt = netWeb.webSaturation;
+            lastWebAE = netWeb.webAutoExposure;
+            lastWebExp = netWeb.webExposureVal;
         }
         
         // Effects are updated asynchronously by the web server

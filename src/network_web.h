@@ -24,7 +24,12 @@ public:
     
     ControlMode currentControlMode;
     bool webStreamEnabled;
-    int webCameraBrightness;
+    
+    // Advanced Camera Tuning
+    int webContrast;
+    int webSaturation;
+    bool webAutoExposure;
+    int webExposureVal;
 
     // Load from NVS
     void loadPreferences();
