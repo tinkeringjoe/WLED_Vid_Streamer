@@ -1,6 +1,7 @@
 #pragma GCC optimize ("O2")
 
 #include "image_processing.h"
+#include "network_web.h"
 
 ImageProcessor imgProcessor;
 
@@ -8,6 +9,8 @@ ImageProcessor::ImageProcessor() {}
 
 ImageProcessor::~ImageProcessor() {
     if (outputBuffer) free(outputBuffer);
+    if (bgBuffer) free(bgBuffer);
+    if (trailBuffer) free(trailBuffer);
     if (xMap) free(xMap);
     if (yMap) free(yMap);
 }
@@ -67,7 +70,12 @@ uint8_t* ImageProcessor::processFrame(camera_fb_t* fb, int targetW, int targetH,
     
     if (!outputBuffer || currentBufferW != targetW || currentBufferH != targetH) {
         if (outputBuffer) free(outputBuffer);
+        if (bgBuffer) free(bgBuffer);
+        if (trailBuffer) free(trailBuffer);
+        
         outputBuffer = (uint8_t*)malloc(requiredSize);
+        bgBuffer = (uint8_t*)calloc(requiredSize, 1);
+        trailBuffer = (uint8_t*)calloc(requiredSize, 1);
         if (!outputBuffer) return nullptr; 
         
         if (xMap) free(xMap);
@@ -158,66 +166,112 @@ uint8_t* ImageProcessor::processFrame(camera_fb_t* fb, int targetW, int targetH,
                 b = max(0, min(255, s_b));
             }
 
-            // Apply Infinite Software Brightness Dimmer (0 to 255, where 255 = 100%)
-            if (softwareBrightness != 255) {
-                int newR = (r * softwareBrightness) >> 8;
-                int newG = (g * softwareBrightness) >> 8;
-                int newB = (b * softwareBrightness) >> 8;
-                r = (newR > 255) ? 255 : newR;
-                g = (newG > 255) ? 255 : newG;
-                b = (newB > 255) ? 255 : newB;
-            }
-
-            switch(effect) {
-                case EFFECT_NORMAL:
-                    break;
-                case EFFECT_PSYCHEDELIC: {
-                    uint8_t cycle = (frameCount / 2) % 3;
-                    uint8_t tempR = r, tempG = g, tempB = b;
-                    if (cycle == 0) { r = tempR; g = tempG; b = tempB; }
-                    else if (cycle == 1) { r = tempG; g = tempB; b = tempR; }
-                    else { r = tempB; g = tempR; b = tempG; }
-                    break;
-                }
-                case EFFECT_RETRO_8BIT: {
-                    snapToPalette(r, g, b, retroPalette, 16);
-                    break;
-                }
-                case EFFECT_CYBERPUNK: {
-                    snapToPalette(r, g, b, cyberpunkPalette, 14);
-                    break;
-                }
-                case EFFECT_THERMAL: {
-                    uint8_t luma = (r * 77 + g * 150 + b * 29) >> 8;
-                    if (luma < 85) {
-                        r = luma * 3; g = 0; b = 0;
-                    } else if (luma < 170) {
-                        r = 255; g = (luma - 85) * 3; b = 0;
-                    } else {
-                        r = 255; g = 255; b = (luma - 170) * 3;
-                    }
-                    break;
-                }
-                case EFFECT_MATRIX: {
-                    uint8_t luma = (r * 77 + g * 150 + b * 29) >> 8;
-                    r = 0;
-                    g = luma;
-                    b = luma / 6; // Digital green with tiny cyan hint
-                    break;
-                }
-                case EFFECT_EDGE_GLOW:
-                    // Handled during edge detection
-                    break;
-                default:
-                    break;
-            }
-
             int destIndex = (i * targetW + j) * 3;
+
+            // --- Background Subtraction ---
+            bool isBackground = false;
+            
+            if (triggerBgCapture && bgBuffer) {
+                bgBuffer[destIndex] = r;
+                bgBuffer[destIndex + 1] = g;
+                bgBuffer[destIndex + 2] = b;
+            }
+            
+            if (netWeb.enableBgSub && bgBuffer) {
+                int bgR = bgBuffer[destIndex];
+                int bgG = bgBuffer[destIndex + 1];
+                int bgB = bgBuffer[destIndex + 2];
+                int diff = abs(r - bgR) + abs(g - bgG) + abs(b - bgB);
+                if (diff < netWeb.bgThreshold) {
+                    isBackground = true;
+                }
+            }
+
+            if (isBackground) {
+                r = 0; g = 0; b = 0;
+            } else {
+                // Apply Infinite Software Brightness Dimmer (0 to 255, where 255 = 100%)
+                if (softwareBrightness != 255) {
+                    int newR = (r * softwareBrightness) >> 8;
+                    int newG = (g * softwareBrightness) >> 8;
+                    int newB = (b * softwareBrightness) >> 8;
+                    r = (newR > 255) ? 255 : newR;
+                    g = (newG > 255) ? 255 : newG;
+                    b = (newB > 255) ? 255 : newB;
+                }
+
+                switch(effect) {
+                    case EFFECT_NORMAL:
+                        break;
+                    case EFFECT_PSYCHEDELIC: {
+                        uint8_t cycle = (frameCount / 2) % 3;
+                        uint8_t tempR = r, tempG = g, tempB = b;
+                        if (cycle == 0) { r = tempR; g = tempG; b = tempB; }
+                        else if (cycle == 1) { r = tempG; g = tempB; b = tempR; }
+                        else { r = tempB; g = tempR; b = tempG; }
+                        break;
+                    }
+                    case EFFECT_RETRO_8BIT: {
+                        snapToPalette(r, g, b, retroPalette, 16);
+                        break;
+                    }
+                    case EFFECT_CYBERPUNK: {
+                        snapToPalette(r, g, b, cyberpunkPalette, 14);
+                        break;
+                    }
+                    case EFFECT_THERMAL: {
+                        uint8_t luma = (r * 77 + g * 150 + b * 29) >> 8;
+                        if (luma < 85) {
+                            r = luma * 3; g = 0; b = 0;
+                        } else if (luma < 170) {
+                            r = 255; g = (luma - 85) * 3; b = 0;
+                        } else {
+                            r = 255; g = 255; b = (luma - 170) * 3;
+                        }
+                        break;
+                    }
+                    case EFFECT_MATRIX: {
+                        uint8_t luma = (r * 77 + g * 150 + b * 29) >> 8;
+                        r = 0;
+                        g = luma;
+                        b = luma / 6; // Digital green with tiny cyan hint
+                        break;
+                    }
+                    case EFFECT_EDGE_GLOW:
+                        // Handled during edge detection
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            // --- Motion Trails ---
+            if (netWeb.trailAmount > 0 && trailBuffer) {
+                int tr = trailBuffer[destIndex];
+                int tg = trailBuffer[destIndex + 1];
+                int tb = trailBuffer[destIndex + 2];
+                
+                // Blend current pixel with history
+                r = (r * (255 - netWeb.trailAmount) + tr * netWeb.trailAmount) / 255;
+                g = (g * (255 - netWeb.trailAmount) + tg * netWeb.trailAmount) / 255;
+                b = (b * (255 - netWeb.trailAmount) + tb * netWeb.trailAmount) / 255;
+                
+                trailBuffer[destIndex] = r;
+                trailBuffer[destIndex + 1] = g;
+                trailBuffer[destIndex + 2] = b;
+            } else if (trailBuffer) {
+                trailBuffer[destIndex] = r;
+                trailBuffer[destIndex + 1] = g;
+                trailBuffer[destIndex + 2] = b;
+            }
+
             outputBuffer[destIndex] = r;
             outputBuffer[destIndex + 1] = g;
             outputBuffer[destIndex + 2] = b;
         }
     }
+    
+    if (triggerBgCapture) triggerBgCapture = false;
     
     return outputBuffer;
 }

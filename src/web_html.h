@@ -115,6 +115,25 @@ const char index_html[] PROGMEM = R"rawliteral(
             <option value="6" %S6%>Neon Edge Glow (Shadows)</option>
         </select>
     </div>
+    
+    <div class="card">
+        <h2>Magic Mirror & Play Settings</h2>
+        
+        <label>
+            <input type="checkbox" id="bgSub" %BGS%>
+            Enable Background Subtraction (Floating Mode)
+        </label>
+        <button onclick="captureBg()" style="background-color: #17a2b8; margin-top: 5px; margin-bottom: 15px;">Capture Empty Room</button>
+        
+        <label for="bgThresh">Background Tolerance: <span id="bgThreshValue">%BGT%</span></label>
+        <input type="range" id="bgThresh" min="10" max="200" value="%BGT%">
+        
+        <label for="trail">Motion Trail Smear: <span id="trailValue">%TRL%</span></label>
+        <input type="range" id="trail" min="0" max="250" value="%TRL%">
+        
+        <label for="attract">Auto-Cycle Attract Mode Timeout (Sec)</label>
+        <input type="number" id="attract" value="%ATT%" placeholder="0 to disable (e.g. 30)">
+    </div>
 
     <button onclick="saveConfig()">Save Settings</button>
     <div id="status"></div>
@@ -135,6 +154,20 @@ const char index_html[] PROGMEM = R"rawliteral(
         const satValue = document.getElementById('satValue');
         satSlider.oninput = function() { satValue.innerHTML = this.value; }
 
+        const bgThreshSlider = document.getElementById('bgThresh');
+        const bgThreshValue = document.getElementById('bgThreshValue');
+        bgThreshSlider.oninput = function() { bgThreshValue.innerHTML = this.value; }
+        
+        const trailSlider = document.getElementById('trail');
+        const trailValue = document.getElementById('trailValue');
+        trailSlider.oninput = function() { trailValue.innerHTML = this.value; }
+
+        function captureBg() {
+            fetch('/capture_bg', { method: 'POST' })
+                .then(r => alert('Background captured!'))
+                .catch(e => alert('Error capturing background'));
+        }
+
         function saveConfig() {
             const btn = document.querySelector('button');
             btn.innerText = "Saving...";
@@ -153,6 +186,11 @@ const char index_html[] PROGMEM = R"rawliteral(
             formData.append('con', document.getElementById('contrast').value);
             formData.append('sat', document.getElementById('saturation').value);
             formData.append('fps', document.getElementById('fps').value);
+            
+            formData.append('bgs', document.getElementById('bgSub').checked ? '1' : '0');
+            formData.append('bgt', document.getElementById('bgThresh').value);
+            formData.append('trl', document.getElementById('trail').value);
+            formData.append('att', document.getElementById('attract').value);
 
             fetch('/save', {
                 method: 'POST',

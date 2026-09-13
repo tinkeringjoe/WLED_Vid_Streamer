@@ -37,6 +37,13 @@ public:
     int cameraContrast = 2;
     int cameraSaturation = 2;
     int targetFPS = 10;
+    
+    // Magic Mirror Settings
+    bool enableBgSub = false;
+    int bgThreshold = 60;
+    int trailAmount = 0;
+    int attractTimeout = 0; // 0 = Disabled
+    unsigned long lastInteractionTime = 0;
 
     // Load from NVS
     void loadPreferences();

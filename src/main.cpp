@@ -59,6 +59,7 @@ void loop() {
         if (currentButtonState == LOW && lastButtonState == HIGH) {
             if (millis() - lastButtonPress > 200) { // 200ms debounce
                 lastButtonPress = millis();
+                netWeb.lastInteractionTime = millis();
                 
                 int nextEffect = (int)netWeb.currentEffect + 1;
                 if (nextEffect >= EFFECT_MAX) nextEffect = 0;
@@ -76,6 +77,18 @@ void loop() {
         // --- Web Control Mode ---
         streamEnabled = netWeb.webStreamEnabled;
         targetSoftwareBrightness = netWeb.webCameraBrightness; // Values 0-255
+    }
+
+    // --- Attract Mode (Auto-Cycle Effects) ---
+    if (netWeb.attractTimeout > 0 && (millis() - netWeb.lastInteractionTime > (netWeb.attractTimeout * 1000UL))) {
+        static unsigned long lastAutoChange = 0;
+        // In attract mode, cycle effect every 15 seconds
+        if (millis() - lastAutoChange > 15000) {
+            lastAutoChange = millis();
+            int nextEffect = (int)netWeb.currentEffect + 1;
+            if (nextEffect >= EFFECT_MAX) nextEffect = 0;
+            netWeb.currentEffect = (VideoEffect)nextEffect;
+        }
     }
 
     // Periodic Status Output removed for performance optimization

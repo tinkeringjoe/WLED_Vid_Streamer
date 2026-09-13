@@ -22,14 +22,17 @@ public:
 
     // Returns a pointer to an internal RGB888 buffer of size (matrixW * matrixH * 3)
     // The caller can then send this buffer via UDP.
-    uint8_t* processFrame(camera_fb_t* fb, int targetW, int targetH, VideoEffect effect, int softwareBrightness = 128);
+    uint8_t* processFrame(camera_fb_t* fb, int targetW, int targetH, VideoEffect effect, int softwareBrightness);
 
     // Get current effect name as string (for Web UI)
     const char* getEffectName(VideoEffect effect);
 
+    bool triggerBgCapture = false;
+
 private:
     uint8_t* outputBuffer = nullptr;
-    int outputBufferSize = 0;
+    uint8_t* bgBuffer = nullptr;
+    uint8_t* trailBuffer = nullptr;
     int currentBufferW = 0;
     int currentBufferH = 0;
     

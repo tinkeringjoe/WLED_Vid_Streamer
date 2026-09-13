@@ -38,6 +38,11 @@ void NetworkWeb::loadPreferences() {
     cameraSaturation = preferences.getInt("saturation", 2);
     targetFPS = preferences.getInt("fps", 10);
     
+    enableBgSub = preferences.getBool("bgSub", false);
+    bgThreshold = preferences.getInt("bgThresh", 60);
+    trailAmount = preferences.getInt("trail", 0);
+    attractTimeout = preferences.getInt("attract", 0);
+    
     preferences.end();
     
     camHandler.updateSettings(cameraVFlip, cameraHMirror, cameraContrast, cameraSaturation);
@@ -66,6 +71,11 @@ void NetworkWeb::savePreferences() {
     preferences.putInt("contrast", cameraContrast);
     preferences.putInt("saturation", cameraSaturation);
     preferences.putInt("fps", targetFPS);
+    
+    preferences.putBool("bgSub", enableBgSub);
+    preferences.putInt("bgThresh", bgThreshold);
+    preferences.putInt("trail", trailAmount);
+    preferences.putInt("attract", attractTimeout);
     
     preferences.end();
 }
@@ -106,6 +116,11 @@ String processor(const String& var) {
     if(var == "F15") return netWeb.targetFPS == 15 ? "selected" : "";
     if(var == "F20") return netWeb.targetFPS == 20 ? "selected" : "";
     
+    if(var == "BGS") return netWeb.enableBgSub ? "checked" : "";
+    if(var == "BGT") return String(netWeb.bgThreshold);
+    if(var == "TRL") return String(netWeb.trailAmount);
+    if(var == "ATT") return String(netWeb.attractTimeout);
+    
     return String();
 }
 
@@ -114,11 +129,12 @@ void NetworkWeb::setupWebServer() {
 
     server->on("/", HTTP_GET, [](AsyncWebServerRequest *request){
         Serial.println("Web Server: Client requested /");
-        request->send_P(200, "text/html", index_html, processor);
+        request->send(200, "text/html", index_html, processor);
     });
 
     server->on("/save", HTTP_POST, [](AsyncWebServerRequest *request){
         Serial.println("Web Server: Client requested /save");
+        netWeb.lastInteractionTime = millis();
         if(request->hasParam("ip", true)) {
             netWeb.wledIP = request->getParam("ip", true)->value();
             wledStreamer.setTargetIP(netWeb.wledIP.c_str());
@@ -159,12 +175,31 @@ void NetworkWeb::setupWebServer() {
         if(request->hasParam("fps", true)) {
             netWeb.targetFPS = request->getParam("fps", true)->value().toInt();
         }
+        if(request->hasParam("bgs", true)) {
+            netWeb.enableBgSub = request->getParam("bgs", true)->value() == "1";
+        }
+        if(request->hasParam("bgt", true)) {
+            netWeb.bgThreshold = request->getParam("bgt", true)->value().toInt();
+        }
+        if(request->hasParam("trl", true)) {
+            netWeb.trailAmount = request->getParam("trl", true)->value().toInt();
+        }
+        if(request->hasParam("att", true)) {
+            netWeb.attractTimeout = request->getParam("att", true)->value().toInt();
+        }
         
         netWeb.savePreferences();
         camHandler.updateSettings(netWeb.cameraVFlip, netWeb.cameraHMirror, netWeb.cameraContrast, netWeb.cameraSaturation);
         request->send(200, "text/plain", "OK");
     });
     
+    server->on("/capture_bg", HTTP_POST, [](AsyncWebServerRequest *request){
+        Serial.println("Web Server: Client requested /capture_bg");
+        netWeb.lastInteractionTime = millis();
+        imgProcessor.triggerBgCapture = true;
+        request->send(200, "text/plain", "OK");
+    });
+
     server->on("/reboot", HTTP_POST, [](AsyncWebServerRequest *request){
         request->send(200, "text/plain", "Rebooting...");
         delay(500);
