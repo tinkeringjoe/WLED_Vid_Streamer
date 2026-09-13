@@ -2,6 +2,7 @@
 
 #include "image_processing.h"
 #include "network_web.h"
+#include "esp_heap_caps.h"
 
 ImageProcessor imgProcessor;
 
@@ -94,6 +95,23 @@ uint8_t* ImageProcessor::processFrame(camera_fb_t* fb, int targetW, int targetH,
 
     int srcW = fb->width;
     uint16_t* pixels = (uint16_t*)fb->buf;
+    
+    // --- PSRAM to SRAM Copy for Massive Speedup ---
+    // The camera DMA dumps to PSRAM (slow external memory). Our convolution loops
+    // read pixels 5 times per target pixel. Copying to internal SRAM first eliminates PSRAM cache misses.
+    static uint16_t* sramFrame = nullptr;
+    static int sramFrameSize = 0;
+    int requiredSram = fb->width * fb->height * 2;
+    if (sramFrameSize != requiredSram) {
+        if (sramFrame) heap_caps_free(sramFrame);
+        sramFrame = (uint16_t*)heap_caps_malloc(requiredSram, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+        sramFrameSize = requiredSram;
+    }
+    
+    if (sramFrame) {
+        memcpy(sramFrame, fb->buf, requiredSram);
+        pixels = sramFrame; // Point processing loop to the ultra-fast internal memory!
+    }
 
     static unsigned long frameCount = 0;
     frameCount++;

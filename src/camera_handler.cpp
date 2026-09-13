@@ -46,13 +46,21 @@ bool CameraHandler::begin() {
         s->set_vflip(s, 0);
         s->set_hmirror(s, 0); 
         
-        // The OV3660's "Advanced Auto Exposure" (AEC2) is notoriously buggy and 
-        // often washes out the picture or turns it completely gray. Disable it to use standard AEC.
-        s->set_aec2(s, 0); 
+        // --- Low-Light Framerate Fix ---
+        // By default, OV3660 drops physical framerate dramatically in low light 
+        // to increase exposure time. This causes unavoidable stutter.
+        s->set_aec2(s, 0);       // Disable buggy Advanced AEC
+        s->set_ae_level(s, 2);   // Push standard Auto-Exposure up (0-2)
+        s->set_bpc(s, 1);        // Enable black pixel correction
+        s->set_wpc(s, 1);        // Enable white pixel correction
+        
+        // Optional: If it STILL stutters in dark rooms, uncomment the next two lines:
+        // s->set_exposure_ctrl(s, 0); // Disable AEC entirely
+        // s->set_aec_value(s, 300);   // Hardcode exposure (trial and error based on room lighting)
         
         s->set_contrast(s, 2);
         s->set_saturation(s, 2);
-        s->set_brightness(s, -1);
+        s->set_brightness(s, 0); // Reset to 0 since we have Software Brightness
     }
     analogReadResolution(12); // 0-4095
     return true;

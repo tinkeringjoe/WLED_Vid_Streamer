@@ -34,6 +34,10 @@ const char index_html[] PROGMEM = R"rawliteral(
             <input type="checkbox" id="streamEn" %STREAM_CHK%>
             <label for="streamEn" style="margin-bottom:0;">Enable Video Stream</label>
         </div>
+        <div class="toggle-switch">
+            <input type="checkbox" id="previewEn" %PREVIEW_CHK%>
+            <label for="previewEn" style="margin-bottom:0;">Enable Web UI Live Preview</label>
+        </div>
         
         <label for="ctrlMode">Control Source</label>
         <select id="ctrlMode">
@@ -43,10 +47,18 @@ const char index_html[] PROGMEM = R"rawliteral(
         
         <label for="fps">Target Framerate (FPS)</label>
         <select id="fps">
+            <option value="1" %F1%>1 FPS</option>
+            <option value="2" %F2%>2 FPS</option>
+            <option value="3" %F3%>3 FPS</option>
+            <option value="4" %F4%>4 FPS</option>
             <option value="5" %F5%>5 FPS (Chunky/Stop-Motion)</option>
-            <option value="10" %F10%>10 FPS (Stable/Recommended)</option>
+            <option value="6" %F6%>6 FPS</option>
+            <option value="7" %F7%>7 FPS</option>
+            <option value="8" %F8%>8 FPS</option>
+            <option value="9" %F9%>9 FPS</option>
+            <option value="10" %F10%>10 FPS</option>
             <option value="12" %F12%>12 FPS</option>
-            <option value="15" %F15%>15 FPS</option>
+            <option value="15" %F15%>15 FPS (Smooth)</option>
             <option value="20" %F20%>20 FPS (Max)</option>
         </select>
         
@@ -134,6 +146,21 @@ const char index_html[] PROGMEM = R"rawliteral(
         <label for="attract">Auto-Cycle Attract Mode Timeout (Sec)</label>
         <input type="number" id="attract" value="%ATT%" placeholder="0 to disable (e.g. 30)">
     </div>
+    
+    <div class="card">
+        <h3>Button / Attract Mode Rotation</h3>
+        <small style="display:block;margin-bottom:15px;color:#aaa;">Select which effects are cycled when pressing the physical button or during attract mode.</small>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label style="font-weight: normal;"><input type="checkbox" id="m0" %M0%> Normal</label>
+            <label style="font-weight: normal;"><input type="checkbox" id="m1" %M1%> Psychedelic</label>
+            <label style="font-weight: normal;"><input type="checkbox" id="m2" %M2%> Retro 8-Bit (Palette)</label>
+            <label style="font-weight: normal;"><input type="checkbox" id="m3" %M3%> Cyberpunk (Palette)</label>
+            <label style="font-weight: normal;"><input type="checkbox" id="m4" %M4%> Thermal Camera</label>
+            <label style="font-weight: normal;"><input type="checkbox" id="m5" %M5%> Digital Matrix</label>
+            <label style="font-weight: normal;"><input type="checkbox" id="m6" %M6%> Neon Edge Glow</label>
+        </div>
+    </div>
 
     <button onclick="saveConfig()">Save Settings</button>
     <div id="status"></div>
@@ -178,7 +205,15 @@ const char index_html[] PROGMEM = R"rawliteral(
             formData.append('h', document.getElementById('height').value);
             formData.append('m', document.getElementById('ctrlMode').value);
             formData.append('en', document.getElementById('streamEn').checked ? '1' : '0');
+            formData.append('prv', document.getElementById('previewEn').checked ? '1' : '0');
             formData.append('e', document.getElementById('effect').value);
+            formData.append('m0', document.getElementById('m0').checked ? '1' : '0');
+            formData.append('m1', document.getElementById('m1').checked ? '1' : '0');
+            formData.append('m2', document.getElementById('m2').checked ? '1' : '0');
+            formData.append('m3', document.getElementById('m3').checked ? '1' : '0');
+            formData.append('m4', document.getElementById('m4').checked ? '1' : '0');
+            formData.append('m5', document.getElementById('m5').checked ? '1' : '0');
+            formData.append('m6', document.getElementById('m6').checked ? '1' : '0');
             formData.append('b', document.getElementById('webBrt').value);
             formData.append('ddp', document.getElementById('ddp').value);
             formData.append('vf', document.getElementById('vflip').checked ? '1' : '0');

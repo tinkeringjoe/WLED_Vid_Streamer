@@ -28,6 +28,7 @@ public:
     
     ControlMode currentControlMode;
     bool webStreamEnabled;
+    bool webPreviewEnabled = true;
     
     // Camera Tuning
     int webCameraBrightness;
@@ -44,6 +45,7 @@ public:
     int trailAmount = 0;
     int attractTimeout = 0; // 0 = Disabled
     unsigned long lastInteractionTime = 0;
+    uint8_t effectMask = 127; // Default all 7 effects enabled
 
     // Load from NVS
     void loadPreferences();
