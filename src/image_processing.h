@@ -6,12 +6,13 @@
 
 enum VideoEffect {
     EFFECT_NORMAL = 0,
-    EFFECT_SPOOKY,
-    EFFECT_GRAYSCALE,
-    EFFECT_INVERT,
-    EFFECT_SEPIA,
-    EFFECT_PSYCHEDELIC,
-    EFFECT_MAX // Used to wrap around
+    EFFECT_PSYCHEDELIC = 1,
+    EFFECT_RETRO_8BIT = 2,
+    EFFECT_CYBERPUNK = 3,
+    EFFECT_THERMAL = 4,
+    EFFECT_MATRIX = 5,
+    EFFECT_EDGE_GLOW = 6,
+    EFFECT_MAX
 };
 
 class ImageProcessor {
@@ -21,16 +22,21 @@ public:
 
     // Returns a pointer to an internal RGB888 buffer of size (matrixW * matrixH * 3)
     // The caller can then send this buffer via UDP.
-    uint8_t* processFrame(camera_fb_t* fb, int matrixW, int matrixH, VideoEffect effect);
+    uint8_t* processFrame(camera_fb_t* fb, int targetW, int targetH, VideoEffect effect, int softwareBrightness = 128);
 
     // Get current effect name as string (for Web UI)
     const char* getEffectName(VideoEffect effect);
 
 private:
     uint8_t* outputBuffer = nullptr;
+    int outputBufferSize = 0;
     int currentBufferW = 0;
     int currentBufferH = 0;
     
+    // Lookup tables for ultra-fast scaling
+    int* xMap = nullptr;
+    int* yMap = nullptr;
+
     // Internal helper to convert RGB565 to RGB888
     void rgb565ToRgb888(uint16_t color, uint8_t &r, uint8_t &g, uint8_t &b);
     

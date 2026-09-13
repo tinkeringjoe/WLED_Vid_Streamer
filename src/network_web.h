@@ -14,8 +14,12 @@ enum ControlMode {
 
 class NetworkWeb {
 public:
+    NetworkWeb();
     void begin();
     
+    void broadcastFrame(uint8_t* frame, int width, int height);
+    void cleanupClients();
+
     // Shared state variables
     String wledIP;
     int matrixWidth;
@@ -25,11 +29,14 @@ public:
     ControlMode currentControlMode;
     bool webStreamEnabled;
     
-    // Advanced Camera Tuning
-    int webContrast;
-    int webSaturation;
-    bool webAutoExposure;
-    int webExposureVal;
+    // Camera Tuning
+    int webCameraBrightness;
+    uint8_t ddpColorOrder = 0;
+    bool cameraVFlip = false;
+    bool cameraHMirror = false;
+    int cameraContrast = 2;
+    int cameraSaturation = 2;
+    int targetFPS = 10;
 
     // Load from NVS
     void loadPreferences();
@@ -39,8 +46,10 @@ public:
 private:
     Preferences preferences;
     AsyncWebServer* server;
+    AsyncWebSocket ws;
 
     void setupWebServer();
+    void connectWiFi();
 };
 
 extern NetworkWeb netWeb;

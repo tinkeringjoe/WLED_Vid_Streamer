@@ -1,4 +1,5 @@
 #include "wled_streamer.h"
+#include "network_web.h"
 
 WLEDStreamer wledStreamer;
 
@@ -17,60 +18,84 @@ void WLEDStreamer::setTargetIP(const char* targetIP) {
     if (targetIP && strlen(targetIP) > 0) {
         strncpy(wledIP, targetIP, sizeof(wledIP) - 1);
         wledIP[sizeof(wledIP) - 1] = '\0';
+        parsedIP.fromString(wledIP); // Parse once so we don't block on DNS lookups!
     }
 }
 
+// Array removed
+
 void WLEDStreamer::sendFrame(uint8_t* frameBuffer, int width, int height) {
     if (!frameBuffer || strlen(wledIP) == 0) return;
-
+    
     int totalPixels = width * height;
-    int totalBytes = totalPixels * 3; // RGB
+    int pixelsLeft = totalPixels;
+    int offset = 0;
     
-    // Standard MTU is 1500, UDP payload ~1472. 
-    // DDP Header is 10 bytes. Let's use 1440 data bytes per packet (480 pixels).
-    const int MAX_DATA_PER_PACKET = 1440; 
-    
-    int bytesSent = 0;
-    bool isFinalPacket = false;
+    // DDP headers support max 480 pixels (1440 bytes) per packet to stay under typical MTU (1500)
+    int maxPixelsPerPacket = 480;
 
-    while (bytesSent < totalBytes) {
-        int bytesToSend = totalBytes - bytesSent;
-        if (bytesToSend > MAX_DATA_PER_PACKET) {
-            bytesToSend = MAX_DATA_PER_PACKET;
-        } else {
-            isFinalPacket = true;
+    while (pixelsLeft > 0) {
+        int pixelsToSend = (pixelsLeft > maxPixelsPerPacket) ? maxPixelsPerPacket : pixelsLeft;
+        int bytesToSend = pixelsToSend * 3;
+        
+        uint8_t packet[10 + 1440]; 
+        
+        packet[0] = 0x41; // Flags: V1
+        packet[1] = sequenceNumber & 0x0F;
+        packet[2] = 1; // Type: 1 = RGB
+        packet[3] = 1; // ID: 1
+        
+        // Offset in bytes (32-bit big endian)
+        uint32_t byteOffset = offset * 3;
+        packet[4] = (byteOffset >> 24) & 0xFF;
+        packet[5] = (byteOffset >> 16) & 0xFF;
+        packet[6] = (byteOffset >> 8) & 0xFF;
+        packet[7] = byteOffset & 0xFF;
+        
+        // Length in bytes (16-bit big endian)
+        packet[8] = (bytesToSend >> 8) & 0xFF;
+        packet[9] = bytesToSend & 0xFF;
+        
+        // Copy pixel data directly. We removed Gamma correction here because WLED 
+        // applies its own color/gamma mapping internally. Double-gamma severely corrupts colors!
+        for (int i = 0; i < pixelsToSend; i++) {
+            int srcIdx = (offset + i) * 3;
+            int dstIdx = 10 + (i * 3);
+            
+            uint8_t r = frameBuffer[srcIdx];
+            uint8_t g = frameBuffer[srcIdx + 1];
+            uint8_t b = frameBuffer[srcIdx + 2];
+
+            if (netWeb.ddpColorOrder == 1) {
+                // GRB
+                packet[dstIdx] = g; packet[dstIdx + 1] = r; packet[dstIdx + 2] = b;
+            } else if (netWeb.ddpColorOrder == 2) {
+                // BGR
+                packet[dstIdx] = b; packet[dstIdx + 1] = g; packet[dstIdx + 2] = r;
+            } else if (netWeb.ddpColorOrder == 3) {
+                // RBG
+                packet[dstIdx] = r; packet[dstIdx + 1] = b; packet[dstIdx + 2] = g;
+            } else if (netWeb.ddpColorOrder == 4) {
+                // GBR
+                packet[dstIdx] = g; packet[dstIdx + 1] = b; packet[dstIdx + 2] = r;
+            } else if (netWeb.ddpColorOrder == 5) {
+                // BRG
+                packet[dstIdx] = b; packet[dstIdx + 1] = r; packet[dstIdx + 2] = g;
+            } else {
+                // Default: RGB
+                packet[dstIdx] = r; packet[dstIdx + 1] = g; packet[dstIdx + 2] = b;
+            }
         }
 
-        // Construct DDP Header
-        DDPHeader header;
-        // 0x40 = Ver 1, Push. 0x01 = Sync (only if final packet)
-        header.flags1 = 0x40 | (isFinalPacket ? 0x01 : 0x00);
-        header.flags2 = sequenceNumber;
-        header.type = 1; // 1 = RGB byte order
-        header.id = 1;   // Destination display ID (default 1)
-        
-        // Offset is in bytes
-        uint32_t offset = bytesSent;
-        // Needs network byte order (Big Endian) for offset and length
-        header.offset = htonl(offset);
-        header.length = htons(bytesToSend);
-
-        udp.beginPacket(wledIP, wledPort);
-        // Write header
-        udp.write((uint8_t*)&header, sizeof(header));
-        // Write pixel chunk
-        udp.write(frameBuffer + bytesSent, bytesToSend);
+        udp.beginPacket(parsedIP, wledPort);
+        udp.write(packet, 10 + bytesToSend);
         udp.endPacket();
 
-        bytesSent += bytesToSend;
-        
-        // Yield to allow the Wi-Fi/Web Server tasks to dispatch network traffic
-        // This prevents ENOMEM and keeps the Web UI responsive.
-        yield();
+        offset += pixelsToSend;
+        pixelsLeft -= pixelsToSend;
     }
     
     // Increment sequence (1-15 per DDP spec)
     sequenceNumber++;
     if (sequenceNumber > 15) sequenceNumber = 1;
 }
-

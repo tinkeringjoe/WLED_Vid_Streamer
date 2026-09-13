@@ -9,12 +9,9 @@ public:
     bool begin();
     camera_fb_t* captureFrame();
     void returnFrame(camera_fb_t* fb);
-    int getManualExposureFromADC(); // Returns 0-1200
-    void applyCameraSettings(int contrast, int saturation, bool autoExp, int manualExp);
-    unsigned long lastAdcRead = 0;
+    void updateSettings(bool vflip, bool hmirror, int contrast, int saturation);
 };
 
 extern CameraHandler camHandler;
 
 #endif // CAMERA_HANDLER_H
-

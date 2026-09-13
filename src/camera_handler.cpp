@@ -39,24 +39,33 @@ bool CameraHandler::begin() {
         return false;
     }
     
-    // Initial adjustments for better image quality (fixing washed-out look)
+    // Initial adjustments
     sensor_t * s = esp_camera_sensor_get();
     if(s != nullptr){
-        s->set_vflip(s, 1);   // Might need toggling depending on physical orientation
-        s->set_hmirror(s, 1); 
+        // Defaults, will be overridden by Web UI load
+        s->set_vflip(s, 0);
+        s->set_hmirror(s, 0); 
         
-        // --- Image Quality Tuning ---
-        s->set_contrast(s, 1);     // Bump contrast to remove flat/washed-out look
-        s->set_saturation(s, 1);   // Slight color boost
-        s->set_aec2(s, 1);         // Enable advanced auto exposure
-        s->set_awb_gain(s, 1);     // Auto White Balance gain
-        s->set_wb_mode(s, 0);      // 0 = Auto White Balance
+        // The OV3660's "Advanced Auto Exposure" (AEC2) is notoriously buggy and 
+        // often washes out the picture or turns it completely gray. Disable it to use standard AEC.
+        s->set_aec2(s, 0); 
+        
+        s->set_contrast(s, 2);
+        s->set_saturation(s, 2);
+        s->set_brightness(s, -1);
     }
-
-    // Configure ADC pin
-    pinMode(LDR_ADC_PIN, INPUT);
-
+    analogReadResolution(12); // 0-4095
     return true;
+}
+
+void CameraHandler::updateSettings(bool vflip, bool hmirror, int contrast, int saturation) {
+    sensor_t * s = esp_camera_sensor_get();
+    if (s != nullptr) {
+        s->set_vflip(s, vflip ? 1 : 0);
+        s->set_hmirror(s, hmirror ? 1 : 0);
+        s->set_contrast(s, contrast);
+        s->set_saturation(s, saturation);
+    }
 }
 
 camera_fb_t* CameraHandler::captureFrame() {
@@ -69,33 +78,4 @@ void CameraHandler::returnFrame(camera_fb_t* fb) {
     }
 }
 
-int CameraHandler::getManualExposureFromADC() {
-    int adcValue = analogRead(LDR_ADC_PIN); // 0 to 4095
-    // Map ADC value to manual exposure time (0 to 1200)
-    return map(adcValue, 0, 4095, 0, 1200);
-}
-
-void CameraHandler::applyCameraSettings(int contrast, int saturation, bool autoExp, int manualExp) {
-    sensor_t * s = esp_camera_sensor_get();
-    if (s != nullptr) {
-        // Clamp contrast and saturation (-2 to 2)
-        if (contrast < -2) contrast = -2;
-        if (contrast > 2) contrast = 2;
-        if (saturation < -2) saturation = -2;
-        if (saturation > 2) saturation = 2;
-
-        s->set_contrast(s, contrast);
-        s->set_saturation(s, saturation);
-
-        if (autoExp) {
-            s->set_exposure_ctrl(s, 1); // Auto Exposure ON
-        } else {
-            s->set_exposure_ctrl(s, 0); // Auto Exposure OFF
-            // Clamp manual exposure (0 to 1200)
-            if (manualExp < 0) manualExp = 0;
-            if (manualExp > 1200) manualExp = 1200;
-            s->set_aec_value(s, manualExp); 
-        }
-    }
-}
 

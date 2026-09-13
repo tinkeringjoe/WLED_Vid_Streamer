@@ -20,9 +20,10 @@ public:
     void sendFrame(uint8_t* frameBuffer, int width, int height);
 
 private:
-    WiFiUDP udp;
     char wledIP[16];
+    IPAddress parsedIP;
     uint16_t wledPort;
+    WiFiUDP udp;
     uint8_t sequenceNumber = 1;
     
     // DDP Header definition
